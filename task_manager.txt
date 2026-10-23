@@ -1,3 +1,2 @@
 1;Fazer a cama;DONE
-3;testedetarefa;DONE
-3;Correr 1km amanha de manha;PENNDING
+2;Correr 1km por uma semana;PENNDING

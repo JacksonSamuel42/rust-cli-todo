@@ -162,7 +162,7 @@ A aplicação inclui validações para reduzir falhas durante a execução:
 
 Algumas funcionalidades que podem ser implementadas em versões futuras:
 
-- [ ] Separar o código em módulos.
+- [X] Separar o código em módulos.
 - [ ] Adicionar testes unitários.
 - [ ] Editar descrições de tarefas.
 - [ ] Filtrar tarefas pendentes e concluídas.
