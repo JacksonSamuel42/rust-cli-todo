@@ -1,10 +1,10 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Status {
-    PENNDING,
+    PENDING,
     DONE,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Task {
     pub id: u32,
     pub description: String,

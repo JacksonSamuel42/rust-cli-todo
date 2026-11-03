@@ -1,7 +1,7 @@
 use crate::models::{Status, Task};
 
 use std::fs::File;
-use std::io::{BufReader, prelude::*};
+use std::io::{BufReader, Error, prelude::*};
 use std::path::Path;
 
 pub struct Manager {
@@ -13,7 +13,7 @@ impl Task {
         Task {
             id,
             description,
-            status: Status::PENNDING,
+            status: Status::PENDING,
         }
     }
 
@@ -24,7 +24,7 @@ impl Task {
     fn format(&self) -> String {
         match self.status {
             Status::DONE => format!("[X] {} - {}\n", self.id, self.description),
-            Status::PENNDING => format!("[ ] {} - {}\n", self.id, self.description),
+            Status::PENDING => format!("[ ] {} - {}\n", self.id, self.description),
         }
     }
 }
@@ -78,42 +78,171 @@ impl Manager {
             Ok(f) => file = f,
             Err(_) => file = File::create(path)?,
         };
-        if Path::new("task_manager.txt").exists() {}
+        if Path::new(path).exists() {}
         let mut buf_reader = BufReader::new(file);
         let mut contents = String::new();
         buf_reader.read_to_string(&mut contents)?;
-        match format_to_vec(contents) {
-            Some(tasks) => {
-                for t in tasks {
-                    self.tasks.push(t);
-                }
-            }
-            None => {
-                eprintln!("Couldn't read file");
-            }
-        }
+
+        let tasks = format_to_vec(&contents)?;
+        self.tasks = tasks;
+
+        // match format_to_vec(&contents) {
+        //     Ok(tasks) => self.tasks = tasks,
+        //     Err(error) => eprintln!("Error parsing tasks: {}", error),
+        // }
 
         Ok(())
     }
 }
 
-fn format_to_vec(content: String) -> Option<Vec<Task>> {
+fn format_to_vec(content: &str) -> std::io::Result<Vec<Task>> {
     let splited_task: Vec<&str> = content.trim().lines().collect();
     let mut tasks: Vec<Task> = Vec::new();
     for task in splited_task {
-        let data: Vec<&str> = task.split(";").collect();
-        if data.len() == 0 || data[0] == "" {
-            return None;
+        let data: Vec<&str> = task.splitn(3, ";").collect();
+
+        if data.len() != 3 {
+            return Err(Error::new(
+                std::io::ErrorKind::InvalidData,
+                "invalid task format",
+            ));
         }
-        let mut status = Status::PENNDING;
-        if data[2] == "DONE" {
-            status = Status::DONE
-        }
+
+        let id = data[0]
+            .parse::<u32>()
+            .map_err(|err| Error::new(std::io::ErrorKind::InvalidData, err))?;
+
+        let status = match data[2] {
+            "PENDING" => Status::PENDING,
+            "DONE" => Status::DONE,
+            _ => {
+                return Err(Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Status not found",
+                ));
+            }
+        };
+
         tasks.push(Task {
-            id: data[0].parse::<u32>().unwrap(),
+            id: id,
             description: data[1].to_string(),
             status: status,
         });
     }
-    Some(tasks)
+    Ok(tasks)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_new_task() {
+        let mut manager = Manager::new();
+        manager.add("Passar no teste");
+        let tasks = manager.tasks;
+        assert_eq!(tasks[0].id, 1);
+        assert_eq!(tasks[0].description, "Passar no teste");
+        assert_eq!(tasks[0].status, Status::PENDING)
+    }
+
+    #[test]
+    fn list_tasks() {
+        let mut manager = Manager::new();
+        manager.add("Passar no teste");
+        manager.add("Estudar rust");
+        let expected = "[ ] 1 - Passar no teste\n[ ] 2 - Estudar rust\n";
+        assert_eq!(manager.list(), expected)
+    }
+
+    #[test]
+    fn should_generate_sequential_ids() {
+        let mut manager = Manager::new();
+        manager.add("Task 1");
+        manager.add("Task 2");
+        manager.add("Task 3");
+
+        assert_eq!(
+            manager.tasks.iter().map(|t| t.id).collect::<Vec<u32>>(),
+            vec![1, 2, 3]
+        )
+    }
+
+    //     #[test]
+    //     fn should_not_reuse_removed_ids() {
+    //         let mut manager = Manager::new();
+    //         manager.add("Task 1");
+    //         manager.add("Task 2");
+    //         manager.remove_task(2);
+    //         manager.add("Task 3");
+    //
+    //         assert_eq!(manager.tasks.last().unwrap().id, 3)
+    //     }
+
+    #[test]
+    fn should_remove_only_the_requested_task() {
+        let mut manager = Manager::new();
+        manager.add("Task 1");
+        manager.add("Task 2");
+        manager.add("Task 3");
+
+        assert!(manager.remove_task(2));
+
+        assert_eq!(manager.tasks.len(), 2);
+        assert_eq!(manager.tasks[0].id, 1);
+        assert_eq!(manager.tasks[1].id, 3)
+    }
+
+    #[test]
+    fn mark_task_as_done() {
+        let mut manager = Manager::new();
+        manager.add("Passar no teste");
+        assert!(manager.mark_as_done(1));
+        assert_eq!(manager.tasks[0].status, Status::DONE)
+    }
+
+    #[test]
+    fn mark_nonexistent_task_as_done() {
+        let mut manager = Manager::new();
+
+        assert!(!manager.mark_as_done(999))
+    }
+
+    #[test]
+    fn remove_task() {
+        let mut manager = Manager::new();
+        manager.add("Passar no teste");
+        assert!(manager.remove_task(1));
+        assert!(manager.list().is_empty())
+    }
+
+    #[test]
+    fn remove_nonexistent_task() {
+        let mut manager = Manager::new();
+
+        assert!(!manager.remove_task(999))
+    }
+
+    #[test]
+    fn should_save_and_load_tasks() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let path = file.path().to_str().unwrap();
+
+        let mut manager = Manager::new();
+
+        manager.add("Learn Rust");
+        manager.add("Build a project");
+        manager.mark_as_done(1);
+
+        manager.save_into_file(path).unwrap();
+
+        let mut new_manager = Manager::new();
+        new_manager.read_from_file(path).unwrap();
+
+        assert_eq!(new_manager.tasks.len(), 2);
+        assert_eq!(new_manager.tasks[0].id, 1);
+        assert_eq!(new_manager.tasks[0].status, Status::DONE);
+        assert_eq!(new_manager.tasks[1].id, 2);
+        assert_eq!(new_manager.tasks[1].status, Status::PENDING);
+    }
 }
