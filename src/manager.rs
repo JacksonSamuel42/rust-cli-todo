@@ -39,6 +39,18 @@ impl Manager {
         self.tasks.push(Task::new(id, description.into()));
     }
 
+    pub fn update(&mut self, id: u32, description: &str) -> Result<(), String> {
+        let task = self
+            .tasks
+            .iter_mut()
+            .find(|task| task.id == id)
+            .ok_or_else(|| format!("task with id {} not found", id))?;
+
+        task.description = description.to_string();
+
+        Ok(())
+    }
+
     pub fn list(&self) -> String {
         self.tasks
             .iter()
@@ -144,6 +156,28 @@ mod tests {
         assert_eq!(tasks[0].id, 1);
         assert_eq!(tasks[0].description, "Passar no teste");
         assert_eq!(tasks[0].status, Status::PENDING)
+    }
+
+    #[test]
+    fn should_update_task() {
+        let mut manager = Manager::new();
+        manager.add("Task 1");
+        manager.add("Task 2");
+
+        assert_eq!(manager.tasks.len(), 2);
+
+        manager.update(2, "Task 2 updated").unwrap();
+        assert_eq!(manager.tasks.len(), 2);
+        assert_eq!(manager.tasks[0].description, "Task 1");
+        assert_eq!(manager.tasks[1].description, "Task 2 updated");
+    }
+
+    #[test]
+    fn should_return_error_when_task_does_not_exist() {
+        let mut manager = Manager::new();
+        let update = manager.update(999, "new task");
+
+        assert!(update.is_err());
     }
 
     #[test]

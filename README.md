@@ -8,6 +8,7 @@ Uma aplicação de linha de comandos (CLI) desenvolvida em Rust para gerir taref
 - Adicionar novas tarefas.
 - Listar todas as tarefas.
 - Marcar tarefas como concluídas.
+- Editar a descrição de uma tarefa.
 - Remover tarefas.
 - Guardar as tarefas num ficheiro local.
 - Carregar automaticamente as tarefas ao iniciar a aplicação.
@@ -34,12 +35,16 @@ https://www.rust-lang.org/tools/install
 todo-list/
 ├── Cargo.toml
 ├── src/
-│   └── main.rs
+│   ├── main.rs
+│   ├── manager.rs
+│   └── models.rs
 └── task_manager.txt
 ```
 
 - `Cargo.toml`: contém os metadados e a configuração do projeto.
-- `src/main.rs`: contém a implementação da aplicação.
+- `src/main.rs`: ponto de entrada, leitura de comandos e interface de terminal.
+- `src/manager.rs`: operações sobre as tarefas e persistência em ficheiro.
+- `src/models.rs`: tipos `Task` e `Status`.
 - `task_manager.txt`: armazena as tarefas localmente e é criado automaticamente caso não exista.
 
 ## Instalação e execução
@@ -57,6 +62,12 @@ Executa a aplicação com o Cargo:
 cargo run
 ```
 
+Para correr os testes:
+
+```bash
+cargo test
+```
+
 ## Comandos disponíveis
 
 | Comando | Descrição |
@@ -64,6 +75,7 @@ cargo run
 | `add <tarefa>` | Adiciona uma nova tarefa. |
 | `list` | Lista todas as tarefas. |
 | `done <id>` | Marca uma tarefa como concluída. |
+| `edit <id> <nova descrição>` | Edita a descrição de uma tarefa. |
 | `remove <id>` | Remove uma tarefa pelo seu ID. |
 | `help` | Mostra os comandos disponíveis. |
 | `exit` | Encerra a aplicação. |
@@ -101,6 +113,13 @@ Depois de concluir a tarefa, a listagem apresenta:
 ```text
 [X] 1 - Estudar Rust
 [ ] 2 - Aprender ownership
+```
+
+### Editar uma tarefa
+
+```text
+> edit 2 Aprender ownership e borrowing
+Tarefa atualizada com sucesso!
 ```
 
 ### Remover uma tarefa
@@ -143,8 +162,8 @@ Os dados são carregados quando a aplicação inicia e atualizados após operaç
 
 - **`Status`**: enumeração que representa o estado de uma tarefa.
 - **`Task`**: estrutura que representa uma tarefa, com ID, descrição e estado.
-- **`Manager`**: gere a coleção de tarefas e as operações disponíveis.
-- **`parse_tasks`**: interpreta e valida os dados carregados do ficheiro.
+- **`Manager`**: gere a coleção de tarefas e as operações disponíveis (`add`, `list`, `mark_as_done`, `update`, `remove_task`).
+- **`format_to_vec`**: interpreta e valida os dados carregados do ficheiro.
 - **`execute_command`**: interpreta e executa os comandos introduzidos pelo utilizador.
 - **`print_header`**: apresenta o cabeçalho e a ajuda da aplicação.
 
@@ -164,7 +183,7 @@ Algumas funcionalidades que podem ser implementadas em versões futuras:
 
 - [X] Separar o código em módulos.
 - [X] Adicionar testes unitários.
-- [ ] Editar descrições de tarefas.
+- [X] Editar descrições de tarefas.
 - [ ] Filtrar tarefas pendentes e concluídas.
 - [ ] Ordenar tarefas por ID ou estado.
 - [ ] Adicionar datas de criação e conclusão.

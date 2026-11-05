@@ -44,6 +44,17 @@ fn main() {
                         manage.save_into_file("task_manager.txt").unwrap();
                         println!("Tarefa finalizada com sucesso!")
                     }
+                    "edit" => {
+                        let id = parts[1].parse::<u32>().unwrap();
+                        let task = parts[2..].join(" ");
+                        match manage.update(id, &task) {
+                            Ok(()) => {
+                                manage.save_into_file("task_manager.txt").unwrap();
+                                println!("Tarefa atualizada com sucesso!")
+                            }
+                            Err(err) => eprintln!("{}", err),
+                        }
+                    }
                     "remove" => {
                         let id = parts[1].parse::<u32>().unwrap();
                         let done = manage.remove_task(id);
@@ -83,6 +94,7 @@ fn print_header() {
       • add <tarefa>   - Adicionar uma nova tarefa
       • list           - Listar todas as tarefas
       • done <id>      - Marcar tarefa como concluída
+      • edit <id> <texto> - Editar a descrição de uma tarefa
       • remove <id>    - Remover uma tarefa
       • exit           - Sair do programa
     --------------------------------------
