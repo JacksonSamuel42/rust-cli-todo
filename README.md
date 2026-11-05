@@ -206,7 +206,7 @@ Algumas funcionalidades que podem ser implementadas em versões futuras:
 - [X] Separar o código em módulos.
 - [X] Adicionar testes unitários.
 - [X] Editar descrições de tarefas.
-- [ ] Filtrar tarefas pendentes e concluídas.
+- [X] Filtrar tarefas pendentes e concluídas.
 - [ ] Ordenar tarefas por ID ou estado.
 - [ ] Adicionar datas de criação e conclusão.
 - [ ] Utilizar JSON ou uma base de dados para armazenamento.
