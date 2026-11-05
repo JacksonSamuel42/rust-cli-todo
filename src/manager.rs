@@ -1,8 +1,7 @@
 use crate::models::{Status, Task};
 
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Error, prelude::*};
-use std::path::Path;
 
 pub struct Manager {
     tasks: Vec<Task>,
@@ -51,11 +50,56 @@ impl Manager {
         Ok(())
     }
 
-    pub fn list(&self) -> String {
-        self.tasks
+    pub fn list(&self, filters: &str) -> Result<String, std::io::Error> {
+        let parts = filters.trim().split_whitespace().collect::<Vec<&str>>();
+
+        let mut status: Option<Status> = None;
+        let mut id: Option<u32> = None;
+
+        for part in parts {
+            if part.is_empty() {
+                continue;
+            }
+
+            let (flag, value) = part.split_once("=").ok_or(Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "falta o '=' no filtro",
+            ))?;
+
+            match flag {
+                "--status" => match value.to_uppercase().as_str() {
+                    "PENDING" => status = Some(Status::PENDING),
+                    "DONE" => status = Some(Status::DONE),
+                    _ => {
+                        return Err(Error::new(
+                            std::io::ErrorKind::InvalidInput,
+                            "invalid status",
+                        ));
+                    }
+                },
+                "--id" => {
+                    let parsed_id = value
+                        .parse::<u32>()
+                        .map_err(|_| Error::new(std::io::ErrorKind::InvalidInput, "id invalido"))?;
+                    id = Some(parsed_id)
+                }
+                _ => {
+                    return Err(Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "there is an invalid filter",
+                    ));
+                }
+            }
+        }
+
+        let result = self
+            .tasks
             .iter()
-            .map(|task| task.format())
-            .collect::<String>()
+            .filter(|t| status.is_none_or(|s| t.status == s) && id.is_none_or(|id| t.id == id))
+            .map(|t| t.format())
+            .collect();
+
+        Ok(result)
     }
 
     pub fn mark_as_done(&mut self, id: u32) -> bool {
@@ -85,12 +129,12 @@ impl Manager {
     }
 
     pub fn read_from_file(&mut self, path: &str) -> std::io::Result<()> {
-        let file;
-        match File::open(path) {
-            Ok(f) => file = f,
-            Err(_) => file = File::create(path)?,
-        };
-        if Path::new(path).exists() {}
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(path)?;
+
         let mut buf_reader = BufReader::new(file);
         let mut contents = String::new();
         buf_reader.read_to_string(&mut contents)?;
@@ -186,7 +230,38 @@ mod tests {
         manager.add("Passar no teste");
         manager.add("Estudar rust");
         let expected = "[ ] 1 - Passar no teste\n[ ] 2 - Estudar rust\n";
-        assert_eq!(manager.list(), expected)
+        assert_eq!(manager.list("").unwrap(), expected)
+    }
+
+    #[test]
+    fn should_list_tasks_with_filter() {
+        let mut manager = Manager::new();
+        manager.add("Passar no teste");
+        manager.add("Estudar rust");
+
+        assert_eq!(
+            manager.list("").unwrap(),
+            "[ ] 1 - Passar no teste\n[ ] 2 - Estudar rust\n"
+        );
+        manager.mark_as_done(2);
+        assert_eq!(
+            manager.list("--status=done --id=2").unwrap(),
+            "[X] 2 - Estudar rust\n"
+        );
+        assert_eq!(
+            manager.list("--status=pending").unwrap(),
+            "[ ] 1 - Passar no teste\n"
+        )
+    }
+
+    #[test]
+    fn should_return_error_for_invalid_filter() {
+        let mut manager = Manager::new();
+        manager.add("Passar no teste");
+
+        assert!(manager.list("--status=done2").is_err());
+        assert!(manager.list("--id=abc").is_err());
+        assert!(manager.list("--unknown=1").is_err())
     }
 
     #[test]
@@ -247,7 +322,7 @@ mod tests {
         let mut manager = Manager::new();
         manager.add("Passar no teste");
         assert!(manager.remove_task(1));
-        assert!(manager.list().is_empty())
+        assert!(manager.list("").unwrap().is_empty())
     }
 
     #[test]

@@ -7,6 +7,7 @@ Uma aplicação de linha de comandos (CLI) desenvolvida em Rust para gerir taref
 
 - Adicionar novas tarefas.
 - Listar todas as tarefas.
+- Filtrar tarefas por estado (`--status`) e por ID (`--id`).
 - Marcar tarefas como concluídas.
 - Editar a descrição de uma tarefa.
 - Remover tarefas.
@@ -73,7 +74,7 @@ cargo test
 | Comando | Descrição |
 |---|---|
 | `add <tarefa>` | Adiciona uma nova tarefa. |
-| `list` | Lista todas as tarefas. |
+| `list [filtros]` | Lista as tarefas, opcionalmente filtradas. |
 | `done <id>` | Marca uma tarefa como concluída. |
 | `edit <id> <nova descrição>` | Edita a descrição de uma tarefa. |
 | `remove <id>` | Remove uma tarefa pelo seu ID. |
@@ -100,6 +101,27 @@ Tarefa adicionada!
 [ ] 1 - Estudar Rust
 [ ] 2 - Aprender ownership
 ```
+
+#### Filtrar a listagem
+
+O `list` aceita filtros opcionais no formato `--filtro=valor`, combinados com **E** (têm de bater todos):
+
+| Filtro | Valores |
+|---|---|
+| `--status` | `pending` ou `done` (sem distinção de maiúsculas) |
+| `--id` | ID da tarefa |
+
+```text
+> list --status=done
+========== Tarefas ===========
+[X] 1 - Estudar Rust
+
+> list --status=pending --id=2
+========== Tarefas ===========
+[ ] 2 - Aprender ownership
+```
+
+Um filtro inválido (estado desconhecido, ID não numérico, flag inexistente ou falta do `=`) apresenta uma mensagem de erro e não altera os dados.
 
 ### Concluir uma tarefa
 
