@@ -1,18 +1,20 @@
 use crate::models::{Status, Task};
 
+use chrono::{DateTime, Utc};
 use std::fs::{File, OpenOptions};
-use std::io::{BufReader, Error, prelude::*};
+use std::io::Error;
 
 pub struct Manager {
     tasks: Vec<Task>,
 }
 
 impl Task {
-    fn new(id: u32, description: String) -> Self {
+    fn new(id: u32, description: String, created_at: DateTime<Utc>) -> Self {
         Task {
             id,
             description,
             status: Status::PENDING,
+            created_at: created_at,
         }
     }
 
@@ -22,8 +24,18 @@ impl Task {
 
     fn format(&self) -> String {
         match self.status {
-            Status::DONE => format!("[X] {} - {}\n", self.id, self.description),
-            Status::PENDING => format!("[ ] {} - {}\n", self.id, self.description),
+            Status::DONE => format!(
+                "[X] {} - {} - {}\n",
+                self.id,
+                self.description,
+                self.created_at.format("%d-%m-%Y %H:%M").to_string()
+            ),
+            Status::PENDING => format!(
+                "[ ] {} - {} - {}\n",
+                self.id,
+                self.description,
+                self.created_at.format("%d-%m-%Y %H:%M").to_string()
+            ),
         }
     }
 }
@@ -33,9 +45,21 @@ impl Manager {
         Manager { tasks: Vec::new() }
     }
 
+    fn next_id(&self) -> u32 {
+        self.tasks.iter().map(|t| t.id).max().unwrap_or(0) + 1
+    }
+
     pub fn add(&mut self, description: &str) {
-        let id = self.tasks.iter().map(|t| t.id).max().unwrap_or(0) + 1;
-        self.tasks.push(Task::new(id, description.into()));
+        let id = self.next_id();
+        self.tasks
+            .push(Task::new(id, description.into(), Utc::now()));
+    }
+
+    #[cfg(test)]
+    pub fn add_at(&mut self, description: &str, created_at: DateTime<Utc>) {
+        let id = self.next_id();
+        self.tasks
+            .push(Task::new(id, description.into(), created_at));
     }
 
     pub fn update(&mut self, id: u32, description: &str) -> Result<(), String> {
@@ -50,7 +74,7 @@ impl Manager {
         Ok(())
     }
 
-    pub fn list(&self, filters: &str) -> Result<String, std::io::Error> {
+    pub fn list(&mut self, filters: &str) -> Result<String, std::io::Error> {
         let parts = filters.trim().split_whitespace().collect::<Vec<&str>>();
 
         let mut status: Option<Status> = None;
@@ -92,6 +116,7 @@ impl Manager {
             }
         }
 
+        self.tasks.sort_by_key(|t| t.id);
         let result = self
             .tasks
             .iter()
@@ -120,11 +145,8 @@ impl Manager {
     }
 
     pub fn save_into_file(&self, path: &str) -> std::io::Result<()> {
-        let mut file = File::create(path)?;
-        for task in &self.tasks {
-            let content = format!("{};{};{:?}\n", task.id, task.description, task.status);
-            file.write_all(content.as_bytes())?;
-        }
+        let file = File::create(path)?;
+        serde_json::to_writer_pretty(&file, &self.tasks)?;
         Ok(())
     }
 
@@ -135,62 +157,24 @@ impl Manager {
             .create(true)
             .open(path)?;
 
-        let mut buf_reader = BufReader::new(file);
-        let mut contents = String::new();
-        buf_reader.read_to_string(&mut contents)?;
+        if file.metadata()?.len() == 0 {
+            return Ok(());
+        }
 
-        let tasks = format_to_vec(&contents)?;
-        self.tasks = tasks;
-
-        // match format_to_vec(&contents) {
-        //     Ok(tasks) => self.tasks = tasks,
-        //     Err(error) => eprintln!("Error parsing tasks: {}", error),
-        // }
+        self.tasks = serde_json::from_reader(file)?;
 
         Ok(())
     }
 }
 
-fn format_to_vec(content: &str) -> std::io::Result<Vec<Task>> {
-    let splited_task: Vec<&str> = content.trim().lines().collect();
-    let mut tasks: Vec<Task> = Vec::new();
-    for task in splited_task {
-        let data: Vec<&str> = task.splitn(3, ";").collect();
-
-        if data.len() != 3 {
-            return Err(Error::new(
-                std::io::ErrorKind::InvalidData,
-                "invalid task format",
-            ));
-        }
-
-        let id = data[0]
-            .parse::<u32>()
-            .map_err(|err| Error::new(std::io::ErrorKind::InvalidData, err))?;
-
-        let status = match data[2] {
-            "PENDING" => Status::PENDING,
-            "DONE" => Status::DONE,
-            _ => {
-                return Err(Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "Status not found",
-                ));
-            }
-        };
-
-        tasks.push(Task {
-            id: id,
-            description: data[1].to_string(),
-            status: status,
-        });
-    }
-    Ok(tasks)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{TimeZone, Utc};
+
+    fn fixed_date() -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 11, 5, 14, 30, 0).unwrap()
+    }
 
     #[test]
     fn add_new_task() {
@@ -227,30 +211,31 @@ mod tests {
     #[test]
     fn list_tasks() {
         let mut manager = Manager::new();
-        manager.add("Passar no teste");
-        manager.add("Estudar rust");
-        let expected = "[ ] 1 - Passar no teste\n[ ] 2 - Estudar rust\n";
+        manager.add_at("Passar no teste", fixed_date());
+        manager.add_at("Estudar rust", fixed_date());
+        let expected =
+            "[ ] 1 - Passar no teste - 05-11-2026 14:30\n[ ] 2 - Estudar rust - 05-11-2026 14:30\n";
         assert_eq!(manager.list("").unwrap(), expected)
     }
 
     #[test]
     fn should_list_tasks_with_filter() {
         let mut manager = Manager::new();
-        manager.add("Passar no teste");
-        manager.add("Estudar rust");
+        manager.add_at("Passar no teste", fixed_date());
+        manager.add_at("Estudar rust", fixed_date());
 
         assert_eq!(
             manager.list("").unwrap(),
-            "[ ] 1 - Passar no teste\n[ ] 2 - Estudar rust\n"
+            "[ ] 1 - Passar no teste - 05-11-2026 14:30\n[ ] 2 - Estudar rust - 05-11-2026 14:30\n"
         );
         manager.mark_as_done(2);
         assert_eq!(
             manager.list("--status=done --id=2").unwrap(),
-            "[X] 2 - Estudar rust\n"
+            "[X] 2 - Estudar rust - 05-11-2026 14:30\n"
         );
         assert_eq!(
             manager.list("--status=pending").unwrap(),
-            "[ ] 1 - Passar no teste\n"
+            "[ ] 1 - Passar no teste - 05-11-2026 14:30\n"
         )
     }
 
@@ -276,17 +261,6 @@ mod tests {
             vec![1, 2, 3]
         )
     }
-
-    //     #[test]
-    //     fn should_not_reuse_removed_ids() {
-    //         let mut manager = Manager::new();
-    //         manager.add("Task 1");
-    //         manager.add("Task 2");
-    //         manager.remove_task(2);
-    //         manager.add("Task 3");
-    //
-    //         assert_eq!(manager.tasks.last().unwrap().id, 3)
-    //     }
 
     #[test]
     fn should_remove_only_the_requested_task() {

@@ -6,7 +6,7 @@ use std::io::{self, Write};
 
 fn main() {
     let mut manage = Manager::new();
-    manage.read_from_file("task_manager.txt").unwrap();
+    manage.read_from_file("task_manager.json").unwrap();
     print_header();
     loop {
         let mut input: String = String::new();
@@ -26,7 +26,7 @@ fn main() {
                     "add" => {
                         let task = parts[1..].join(" ");
                         manage.add(&task);
-                        manage.save_into_file("task_manager.txt").unwrap();
+                        manage.save_into_file("task_manager.json").unwrap();
                         println!("Tarefa adicionada!")
                     }
                     "list" => {
@@ -56,7 +56,7 @@ fn main() {
                             println!("Erro ao finalizar tarefa!");
                             continue;
                         }
-                        manage.save_into_file("task_manager.txt").unwrap();
+                        manage.save_into_file("task_manager.json").unwrap();
                         println!("Tarefa finalizada com sucesso!")
                     }
                     "edit" => {
@@ -70,7 +70,7 @@ fn main() {
                         let task = parts[2..].join(" ");
                         match manage.update(id, &task) {
                             Ok(()) => {
-                                manage.save_into_file("task_manager.txt").unwrap();
+                                manage.save_into_file("task_manager.json").unwrap();
                                 println!("Tarefa atualizada com sucesso!")
                             }
                             Err(err) => eprintln!("{}", err),
@@ -89,7 +89,7 @@ fn main() {
                             println!("Erro ao remover tarefa!");
                             continue;
                         }
-                        manage.save_into_file("task_manager.txt").unwrap();
+                        manage.save_into_file("task_manager.json").unwrap();
                         println!("Tarefa removida com sucesso!")
                     }
                     "exit" => {

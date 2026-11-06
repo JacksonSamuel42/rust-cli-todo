@@ -1,17 +1,17 @@
 
 # Todo List CLI
 
-Uma aplicação de linha de comandos (CLI) desenvolvida em Rust para gerir tarefas. Permite adicionar, listar, concluir e remover tarefas, guardando os dados localmente num ficheiro de texto.
+Uma aplicação de linha de comandos (CLI) desenvolvida em Rust para gerir tarefas. Permite adicionar, listar, concluir e remover tarefas, guardando os dados localmente num ficheiro JSON.
 
 ## Funcionalidades
 
-- Adicionar novas tarefas.
+- Adicionar novas tarefas, com a data de criação.
 - Listar todas as tarefas.
 - Filtrar tarefas por estado (`--status`) e por ID (`--id`).
 - Marcar tarefas como concluídas.
 - Editar a descrição de uma tarefa.
 - Remover tarefas.
-- Guardar as tarefas num ficheiro local.
+- Guardar as tarefas num ficheiro JSON local.
 - Carregar automaticamente as tarefas ao iniciar a aplicação.
 - Validar comandos e apresentar mensagens de erro.
 - Consultar os comandos disponíveis através de `help`.
@@ -20,6 +20,8 @@ Uma aplicação de linha de comandos (CLI) desenvolvida em Rust para gerir taref
 
 - **Rust** — linguagem de programação.
 - **Cargo** — ferramenta de gestão e compilação do projeto.
+- **serde** / **serde_json** — serialização das tarefas para JSON.
+- **chrono** — data e hora de criação das tarefas.
 - **File I/O** — leitura e escrita de ficheiros para persistência dos dados.
 
 ## Requisitos
@@ -39,14 +41,14 @@ todo-list/
 │   ├── main.rs
 │   ├── manager.rs
 │   └── models.rs
-└── task_manager.txt
+└── task_manager.json
 ```
 
 - `Cargo.toml`: contém os metadados e a configuração do projeto.
 - `src/main.rs`: ponto de entrada, leitura de comandos e interface de terminal.
 - `src/manager.rs`: operações sobre as tarefas e persistência em ficheiro.
 - `src/models.rs`: tipos `Task` e `Status`.
-- `task_manager.txt`: armazena as tarefas localmente e é criado automaticamente caso não exista.
+- `task_manager.json`: armazena as tarefas localmente e é criado automaticamente caso não exista.
 
 ## Instalação e execução
 
@@ -97,9 +99,9 @@ Tarefa adicionada!
 
 ```text
 > list
-========== Tarefas ==========
-[ ] 1 - Estudar Rust
-[ ] 2 - Aprender ownership
+========== Tarefas ===========
+[ ] 1 - Estudar Rust - 05-11-2026 14:30
+[ ] 2 - Aprender ownership - 05-11-2026 14:30
 ```
 
 #### Filtrar a listagem
@@ -114,11 +116,11 @@ O `list` aceita filtros opcionais no formato `--filtro=valor`, combinados com **
 ```text
 > list --status=done
 ========== Tarefas ===========
-[X] 1 - Estudar Rust
+[X] 1 - Estudar Rust - 05-11-2026 14:30
 
 > list --status=pending --id=2
 ========== Tarefas ===========
-[ ] 2 - Aprender ownership
+[ ] 2 - Aprender ownership - 05-11-2026 14:30
 ```
 
 Um filtro inválido (estado desconhecido, ID não numérico, flag inexistente ou falta do `=`) apresenta uma mensagem de erro e não altera os dados.
@@ -133,8 +135,8 @@ Tarefa finalizada com sucesso!
 Depois de concluir a tarefa, a listagem apresenta:
 
 ```text
-[X] 1 - Estudar Rust
-[ ] 2 - Aprender ownership
+[X] 1 - Estudar Rust - 05-11-2026 14:30
+[ ] 2 - Aprender ownership - 05-11-2026 14:30
 ```
 
 ### Editar uma tarefa
@@ -160,32 +162,39 @@ Saindo do Todo List. Até mais!
 
 ## Armazenamento dos dados
 
-As tarefas são guardadas no ficheiro `task_manager.txt`, utilizando o seguinte formato:
+As tarefas são guardadas em `task_manager.json`, como um array de objetos:
 
-```text
-<id>;<descrição>;<estado>
+```json
+[
+  {
+    "id": 1,
+    "description": "Estudar Rust",
+    "status": "DONE",
+    "created_at": "2026-11-05T14:30:00Z"
+  },
+  {
+    "id": 2,
+    "description": "Aprender ownership",
+    "status": "PENDING",
+    "created_at": "2026-11-05T14:30:00Z"
+  }
+]
 ```
 
-Exemplo:
+- `id` — identificador da tarefa.
+- `description` — descrição livre (pode conter `;`, aspas ou acentos; o JSON escapa o que for preciso).
+- `status` — `PENDING` (pendente) ou `DONE` (concluída).
+- `created_at` — data e hora de criação, em RFC 3339 (UTC).
 
-```text
-1;Estudar Rust;DONE
-2;Aprender ownership;PENDING
-```
-
-Os estados possíveis são:
-
-- `PENDING` — tarefa pendente.
-- `DONE` — tarefa concluída.
-
-Os dados são carregados quando a aplicação inicia e atualizados após operações que alteram as tarefas.
+Um ficheiro vazio é tratado como lista vazia. Os dados são carregados quando a aplicação inicia e atualizados após cada operação que altere as tarefas.
 
 ## Organização do código
 
 - **`Status`**: enumeração que representa o estado de uma tarefa.
-- **`Task`**: estrutura que representa uma tarefa, com ID, descrição e estado.
-- **`Manager`**: gere a coleção de tarefas e as operações disponíveis (`add`, `list`, `mark_as_done`, `update`, `remove_task`).
-- **`format_to_vec`**: interpreta e valida os dados carregados do ficheiro.
+- **`Task`**: estrutura que representa uma tarefa, com ID, descrição, estado e data de criação.
+- **`Manager`**: gere a coleção de tarefas e as operações disponíveis (`add`, `add_at`, `list`, `mark_as_done`, `update`, `remove_task`).
+- **`Task::new`**: recebe o instante de criação, para que o relógio não fique escondido dentro do construtor.
+- **`serde`**: `#[derive(Serialize, Deserialize)]` nos modelos faz a leitura e escrita do JSON.
 - **`execute_command`**: interpreta e executa os comandos introduzidos pelo utilizador.
 - **`print_header`**: apresenta o cabeçalho e a ajuda da aplicação.
 
@@ -193,10 +202,9 @@ Os dados são carregados quando a aplicação inicia e atualizados após operaç
 
 A aplicação inclui validações para reduzir falhas durante a execução:
 
-- Impede a criação de tarefas com descrições vazias.
 - Valida os IDs introduzidos nos comandos.
-- Verifica o formato dos dados carregados.
-- Deteta estados inválidos e IDs duplicados no ficheiro.
+- Rejeita filtros inválidos (estado desconhecido, ID não numérico, flag inexistente).
+- Apresenta um erro quando o JSON do ficheiro não pode ser lido.
 - Apresenta mensagens de erro quando ocorrem problemas de leitura ou escrita.
 
 ## Melhorias futuras
@@ -207,11 +215,12 @@ Algumas funcionalidades que podem ser implementadas em versões futuras:
 - [X] Adicionar testes unitários.
 - [X] Editar descrições de tarefas.
 - [X] Filtrar tarefas pendentes e concluídas.
+- [X] Adicionar data de criação às tarefas.
+- [X] Utilizar JSON para armazenamento.
+- [ ] Adicionar data de conclusão.
 - [ ] Ordenar tarefas por ID ou estado.
-- [ ] Adicionar datas de criação e conclusão.
-- [ ] Utilizar JSON ou uma base de dados para armazenamento.
 - [ ] Criar uma interface gráfica.
 
 ## Objetivo do projeto
 
-Este projeto serve como exercício prático de aprendizagem de Rust, explorando estruturas, enumerações, métodos, vetores, tratamento de erros, manipulação de ficheiros e interação com o terminal.
+Este projeto serve como exercício prático de aprendizagem de Rust, explorando estruturas, enumerações, métodos, vetores, tratamento de erros, serialização com `serde`, datas com `chrono`, manipulação de ficheiros e interação com o terminal.
