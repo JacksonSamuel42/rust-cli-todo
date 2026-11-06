@@ -12,4 +12,5 @@ pub struct Task {
     pub description: String,
     pub status: Status,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    pub done_at: Option<chrono::DateTime<chrono::Utc>>,
 }

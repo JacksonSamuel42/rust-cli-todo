@@ -8,7 +8,7 @@ Uma aplicação de linha de comandos (CLI) desenvolvida em Rust para gerir taref
 - Adicionar novas tarefas, com a data de criação.
 - Listar todas as tarefas.
 - Filtrar tarefas por estado (`--status`) e por ID (`--id`).
-- Marcar tarefas como concluídas.
+- Marcar tarefas como concluídas, registando a data de conclusão.
 - Editar a descrição de uma tarefa.
 - Remover tarefas.
 - Guardar as tarefas num ficheiro JSON local.
@@ -116,12 +116,14 @@ O `list` aceita filtros opcionais no formato `--filtro=valor`, combinados com **
 ```text
 > list --status=done
 ========== Tarefas ===========
-[X] 1 - Estudar Rust - 05-11-2026 14:30
+[X] 1 - Estudar Rust - 05-11-2026 15:00
 
 > list --status=pending --id=2
 ========== Tarefas ===========
 [ ] 2 - Aprender ownership - 05-11-2026 14:30
 ```
+
+A data apresentada é a de **conclusão** nas tarefas concluídas e a de **criação** nas pendentes.
 
 Um filtro inválido (estado desconhecido, ID não numérico, flag inexistente ou falta do `=`) apresenta uma mensagem de erro e não altera os dados.
 
@@ -135,7 +137,7 @@ Tarefa finalizada com sucesso!
 Depois de concluir a tarefa, a listagem apresenta:
 
 ```text
-[X] 1 - Estudar Rust - 05-11-2026 14:30
+[X] 1 - Estudar Rust - 05-11-2026 15:00
 [ ] 2 - Aprender ownership - 05-11-2026 14:30
 ```
 
@@ -170,13 +172,15 @@ As tarefas são guardadas em `task_manager.json`, como um array de objetos:
     "id": 1,
     "description": "Estudar Rust",
     "status": "DONE",
-    "created_at": "2026-11-05T14:30:00Z"
+    "created_at": "2026-11-05T14:30:00Z",
+    "done_at": "2026-11-05T15:00:00Z"
   },
   {
     "id": 2,
     "description": "Aprender ownership",
     "status": "PENDING",
-    "created_at": "2026-11-05T14:30:00Z"
+    "created_at": "2026-11-05T14:30:00Z",
+    "done_at": null
   }
 ]
 ```
@@ -185,15 +189,17 @@ As tarefas são guardadas em `task_manager.json`, como um array de objetos:
 - `description` — descrição livre (pode conter `;`, aspas ou acentos; o JSON escapa o que for preciso).
 - `status` — `PENDING` (pendente) ou `DONE` (concluída).
 - `created_at` — data e hora de criação, em RFC 3339 (UTC).
+- `done_at` — data e hora de conclusão, ou `null` enquanto a tarefa estiver pendente.
 
 Um ficheiro vazio é tratado como lista vazia. Os dados são carregados quando a aplicação inicia e atualizados após cada operação que altere as tarefas.
 
 ## Organização do código
 
 - **`Status`**: enumeração que representa o estado de uma tarefa.
-- **`Task`**: estrutura que representa uma tarefa, com ID, descrição, estado e data de criação.
+- **`Task`**: estrutura que representa uma tarefa, com ID, descrição, estado, data de criação e data de conclusão.
 - **`Manager`**: gere a coleção de tarefas e as operações disponíveis (`add`, `add_at`, `list`, `mark_as_done`, `update`, `remove_task`).
 - **`Task::new`**: recebe o instante de criação, para que o relógio não fique escondido dentro do construtor.
+- **`Task::done`**: muda o estado para `DONE` e regista a data de conclusão.
 - **`serde`**: `#[derive(Serialize, Deserialize)]` nos modelos faz a leitura e escrita do JSON.
 - **`execute_command`**: interpreta e executa os comandos introduzidos pelo utilizador.
 - **`print_header`**: apresenta o cabeçalho e a ajuda da aplicação.
@@ -216,8 +222,8 @@ Algumas funcionalidades que podem ser implementadas em versões futuras:
 - [X] Editar descrições de tarefas.
 - [X] Filtrar tarefas pendentes e concluídas.
 - [X] Adicionar data de criação às tarefas.
+- [X] Adicionar data de conclusão.
 - [X] Utilizar JSON para armazenamento.
-- [ ] Adicionar data de conclusão.
 - [ ] Ordenar tarefas por ID ou estado.
 - [ ] Criar uma interface gráfica.
 

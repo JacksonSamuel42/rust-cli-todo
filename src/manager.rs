@@ -15,11 +15,13 @@ impl Task {
             description,
             status: Status::PENDING,
             created_at: created_at,
+            done_at: None,
         }
     }
 
     fn done(&mut self) {
-        self.status = Status::DONE
+        self.status = Status::DONE;
+        self.done_at = Some(Utc::now())
     }
 
     fn format(&self) -> String {
@@ -28,7 +30,10 @@ impl Task {
                 "[X] {} - {} - {}\n",
                 self.id,
                 self.description,
-                self.created_at.format("%d-%m-%Y %H:%M").to_string()
+                match self.done_at {
+                    Some(date) => date.format("%d-%m-%Y %H:%M").to_string(),
+                    None => "done".to_string(),
+                }
             ),
             Status::PENDING => format!(
                 "[ ] {} - {} - {}\n",
@@ -176,6 +181,10 @@ mod tests {
         Utc.with_ymd_and_hms(2026, 11, 5, 14, 30, 0).unwrap()
     }
 
+    fn current_date() -> String {
+        Utc::now().format("%d-%m-%Y %H:%M").to_string()
+    }
+
     #[test]
     fn add_new_task() {
         let mut manager = Manager::new();
@@ -231,7 +240,7 @@ mod tests {
         manager.mark_as_done(2);
         assert_eq!(
             manager.list("--status=done --id=2").unwrap(),
-            "[X] 2 - Estudar rust - 05-11-2026 14:30\n"
+            format!("[X] 2 - Estudar rust - {}\n", current_date())
         );
         assert_eq!(
             manager.list("--status=pending").unwrap(),
