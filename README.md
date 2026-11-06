@@ -197,9 +197,10 @@ Um ficheiro vazio é tratado como lista vazia. Os dados são carregados quando a
 
 - **`Status`**: enumeração que representa o estado de uma tarefa.
 - **`Task`**: estrutura que representa uma tarefa, com ID, descrição, estado, data de criação e data de conclusão.
-- **`Manager`**: gere a coleção de tarefas e as operações disponíveis (`add`, `add_at`, `list`, `mark_as_done`, `update`, `remove_task`).
+- **`Manager`**: gere a coleção de tarefas e as operações disponíveis (`add`, `add_at`, `list`, `mark_as_done`, `mark_as_done_at`, `update`, `remove_task`).
 - **`Task::new`**: recebe o instante de criação, para que o relógio não fique escondido dentro do construtor.
-- **`Task::done`**: muda o estado para `DONE` e regista a data de conclusão.
+- **`Task::done`**: muda o estado para `DONE` e regista a data de conclusão recebida.
+- **Relógio**: `add` e `mark_as_done` são os únicos pontos que chamam `Utc::now()`; as variantes `add_at` e `mark_as_done_at` recebem o instante, o que torna os testes determinísticos.
 - **`serde`**: `#[derive(Serialize, Deserialize)]` nos modelos faz a leitura e escrita do JSON.
 - **`execute_command`**: interpreta e executa os comandos introduzidos pelo utilizador.
 - **`print_header`**: apresenta o cabeçalho e a ajuda da aplicação.

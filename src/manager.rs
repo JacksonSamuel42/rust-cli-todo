@@ -19,9 +19,9 @@ impl Task {
         }
     }
 
-    fn done(&mut self) {
+    fn done(&mut self, done_at: DateTime<Utc>) {
         self.status = Status::DONE;
-        self.done_at = Some(Utc::now())
+        self.done_at = Some(done_at)
     }
 
     fn format(&self) -> String {
@@ -133,12 +133,14 @@ impl Manager {
     }
 
     pub fn mark_as_done(&mut self, id: u32) -> bool {
+        self.mark_as_done_at(id, Utc::now())
+    }
+
+    pub fn mark_as_done_at(&mut self, id: u32, done_at: DateTime<Utc>) -> bool {
         self.tasks
             .iter_mut()
             .find(|task| task.id == id)
-            .map(|task| {
-                task.done();
-            })
+            .map(|task| task.done(done_at))
             .is_some()
     }
 
@@ -181,8 +183,8 @@ mod tests {
         Utc.with_ymd_and_hms(2026, 11, 5, 14, 30, 0).unwrap()
     }
 
-    fn current_date() -> String {
-        Utc::now().format("%d-%m-%Y %H:%M").to_string()
+    fn fixed_done_date() -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 11, 5, 15, 0, 0).unwrap()
     }
 
     #[test]
@@ -237,10 +239,10 @@ mod tests {
             manager.list("").unwrap(),
             "[ ] 1 - Passar no teste - 05-11-2026 14:30\n[ ] 2 - Estudar rust - 05-11-2026 14:30\n"
         );
-        manager.mark_as_done(2);
+        manager.mark_as_done_at(2, fixed_done_date());
         assert_eq!(
             manager.list("--status=done --id=2").unwrap(),
-            format!("[X] 2 - Estudar rust - {}\n", current_date())
+            "[X] 2 - Estudar rust - 05-11-2026 15:00\n"
         );
         assert_eq!(
             manager.list("--status=pending").unwrap(),
